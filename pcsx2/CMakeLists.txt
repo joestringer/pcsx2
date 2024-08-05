@@ -385,6 +385,7 @@ set(pcsx2USBSources
 	USB/usb-pad/lg/lg_ff.cpp
 	USB/usb-pad/usb-buzz.cpp
 	USB/usb-pad/usb-gametrak.cpp
+	USB/usb-pad/usb-mascon.cpp
 	USB/usb-pad/usb-realplay.cpp
 	USB/usb-pad/usb-pad-ff.cpp
 	USB/usb-pad/usb-pad-sdl-ff.cpp
@@ -424,6 +425,7 @@ set(pcsx2USBHeaders
 	USB/usb-pad/usb-buzz.h
 	USB/usb-pad/usb-gametrak.h
 	USB/usb-pad/usb-realplay.h
+	USB/usb-pad/usb-mascon.h
 	USB/usb-pad/usb-pad-sdl-ff.h
 	USB/usb-pad/usb-pad.h
 	USB/usb-pad/usb-trance-vibrator.h

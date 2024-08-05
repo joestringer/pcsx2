@@ -42,6 +42,7 @@ enum DeviceType : s32
 	DEVTYPE_DJ,
 	DEVTYPE_GAMETRAK,
 	DEVTYPE_REALPLAY,
+	DEVTYPE_MASCON,
 };
 
 class DeviceProxy

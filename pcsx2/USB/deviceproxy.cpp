@@ -5,6 +5,7 @@
 #include "usb-eyetoy/usb-eyetoy-webcam.h"
 #include "usb-pad/usb-buzz.h"
 #include "usb-pad/usb-gametrak.h"
+#include "usb-pad/usb-mascon.h"
 #include "usb-pad/usb-realplay.h"
 #include "usb-hid/usb-hid.h"
 #include "usb-mic/usb-headset.h"
@@ -84,6 +85,7 @@ void RegisterDevice::Register()
 	inst.Add(DEVTYPE_GUNCON2, new usb_lightgun::GunCon2Device());
 	inst.Add(DEVTYPE_GAMETRAK, new usb_pad::GametrakDevice());
 	inst.Add(DEVTYPE_REALPLAY, new usb_pad::RealPlayDevice());
+	inst.Add(DEVTYPE_MASCON, new usb_pad::MasconDevice());
 }
 
 void RegisterDevice::Unregister()

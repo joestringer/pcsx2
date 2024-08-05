@@ -396,6 +396,7 @@
     <ClCompile Include="USB\usb-pad\lg\lg_ff.cpp" />
     <ClCompile Include="USB\usb-pad\usb-buzz.cpp" />
     <ClCompile Include="USB\usb-pad\usb-gametrak.cpp" />
+    <ClCompile Include="USB\usb-pad\usb-mascon.cpp" />
     <ClCompile Include="USB\usb-pad\usb-realplay.cpp" />
     <ClCompile Include="USB\usb-pad\usb-pad-ff.cpp" />
     <ClCompile Include="USB\usb-pad\usb-pad-sdl-ff.cpp" />
@@ -849,6 +850,7 @@
     <ClInclude Include="USB\usb-pad\lg\lg_ff.h" />
     <ClInclude Include="USB\usb-pad\usb-buzz.h" />
     <ClInclude Include="USB\usb-pad\usb-gametrak.h" />
+    <ClInclude Include="USB\usb-pad\usb-mascon.h" />
     <ClInclude Include="USB\usb-pad\usb-realplay.h" />
     <ClInclude Include="USB\usb-pad\usb-pad-sdl-ff.h" />
     <ClInclude Include="USB\usb-pad\usb-pad.h" />
