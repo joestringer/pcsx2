@@ -13,6 +13,7 @@ namespace usb_pad
 	{
 		MT_TYPE2, // TCPP20009 or similar
 		MT_SHINKANSEN, // TCPP20011
+		MT_RYOJOUHEN, // TCPP20014
 		MT_COUNT,
 	};
 
@@ -204,6 +205,29 @@ namespace usb_pad
 		MASCON_AXES, // Brake, Power, Pedal
 		MASCON_DPAD,
 		MASCON_BUTTONS(6),
+		MASCON_PAD_BYTE,
+		MASCON_END,
+	};
+
+	// ---- Ryojouhen controller ----
+
+	static const USBDescStrings dct03_desc_strings = {
+		"",
+		"TAITO",
+		"TAITO_DENSYA_CON_T03",
+		"TCPP20014",
+	};
+
+	DEFINE_DCT_DEV_DESCRIPTOR(dct03, 0xFF, 0x0007);
+
+	// https://marcriera.github.io/ddgo-controller-docs/controllers/usb/descriptors/tcpp20014_hid-report-descriptor.txt
+	static const uint8_t dct03_hid_report_descriptor[] = {
+		MASCON_PREAMBLE,
+		MASCON_AXES, // Brake, Power, Pedal
+		MASCON_DPAD,
+		MASCON_BUTTONS(7),
+		MASCON_PAD_BYTE,
+		MASCON_PAD_BYTE,
 		MASCON_PAD_BYTE,
 		MASCON_END,
 	};

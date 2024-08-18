@@ -30,6 +30,7 @@ namespace usb_pad
 		static const char* subtypes[] = {
 			TRANSLATE_NOOP("USB", "Type 2"),
 			TRANSLATE_NOOP("USB", "Shinkansen"),
+			TRANSLATE_NOOP("USB", "Ryojouhen"),
 		};
 		return subtypes;
 	}
@@ -51,7 +52,11 @@ namespace usb_pad
 		CID_MC_SELECT,
 		CID_MC_START,
 
-		LENGTH,
+		// Ryojouhen controller has 7 buttons, map L/R onto existing indexes.
+		CID_MC_CAMERA,
+		CID_MC_L = CID_MC_C,
+		CID_MC_R = CID_MC_D,
+
 		BUTTONS_OFFSET = CID_MC_B,
 	};
 
@@ -73,6 +78,26 @@ namespace usb_pad
 					{"B", TRANSLATE_NOOP("Pad", "B Button"), ICON_PF_KEY_B, InputBindingInfo::Type::Button, CID_MC_B, GenericInputBinding::Cross},
 					{"C", TRANSLATE_NOOP("Pad", "C Button"), ICON_PF_KEY_C, InputBindingInfo::Type::Button, CID_MC_C, GenericInputBinding::Circle},
 					{"D", TRANSLATE_NOOP("Pad", "D Button"), ICON_PF_KEY_D, InputBindingInfo::Type::Button, CID_MC_D, GenericInputBinding::Triangle},
+					{"Select", TRANSLATE_NOOP("Pad", "Select"), ICON_PF_SELECT_SHARE, InputBindingInfo::Type::Button, CID_MC_SELECT, GenericInputBinding::Select},
+					{"Start", TRANSLATE_NOOP("Pad", "Start"), ICON_PF_START, InputBindingInfo::Type::Button, CID_MC_START, GenericInputBinding::Start},
+				};
+
+				return bindings;
+			}
+			case MT_RYOJOUHEN:
+			{
+				static constexpr const InputBindingInfo bindings[] = {
+					{"Power", TRANSLATE_NOOP("Pad", "Power"), ICON_PF_LEFT_ANALOG_DOWN, InputBindingInfo::Type::Axis, CID_MC_POWER, GenericInputBinding::LeftStickDown},
+					{"Brake", TRANSLATE_NOOP("Pad", "Brake"), ICON_PF_LEFT_ANALOG_UP, InputBindingInfo::Type::Axis, CID_MC_BRAKE, GenericInputBinding::LeftStickUp},
+					{"Up", TRANSLATE_NOOP("Pad", "D-Pad Up"), ICON_PF_DPAD_UP, InputBindingInfo::Type::Button, CID_MC_UP, GenericInputBinding::DPadUp},
+					{"Down", TRANSLATE_NOOP("Pad", "D-Pad Down"), ICON_PF_DPAD_DOWN, InputBindingInfo::Type::Button, CID_MC_DOWN, GenericInputBinding::DPadDown},
+					{"Left", TRANSLATE_NOOP("Pad", "D-Pad Left"), ICON_PF_DPAD_LEFT, InputBindingInfo::Type::Button, CID_MC_LEFT, GenericInputBinding::DPadLeft},
+					{"Right", TRANSLATE_NOOP("Pad", "D-Pad Right"), ICON_PF_DPAD_RIGHT, InputBindingInfo::Type::Button, CID_MC_RIGHT, GenericInputBinding::DPadRight},
+					{"Announce", TRANSLATE_NOOP("Pad", "Announce"), ICON_PF_KEY_B, InputBindingInfo::Type::Button, CID_MC_A, GenericInputBinding::Circle},
+					{"Horn", TRANSLATE_NOOP("Pad", "Horn"), ICON_PF_KEY_A, InputBindingInfo::Type::Button, CID_MC_B, GenericInputBinding::Cross},
+					{"LeftDoor", TRANSLATE_NOOP("Pad", "Left Door"), ICON_PF_KEY_L, InputBindingInfo::Type::Button, CID_MC_L, GenericInputBinding::Square},
+					{"RightDoor", TRANSLATE_NOOP("Pad", "Right Door"), ICON_PF_KEY_R, InputBindingInfo::Type::Button, CID_MC_R, GenericInputBinding::Triangle},
+					{"Camera", TRANSLATE_NOOP("Pad", "Camera Button"), ICON_PF_CAMERA, InputBindingInfo::Type::Button, CID_MC_CAMERA, GenericInputBinding::R1},
 					{"Select", TRANSLATE_NOOP("Pad", "Select"), ICON_PF_SELECT_SHARE, InputBindingInfo::Type::Button, CID_MC_SELECT, GenericInputBinding::Select},
 					{"Start", TRANSLATE_NOOP("Pad", "Start"), ICON_PF_START, InputBindingInfo::Type::Button, CID_MC_START, GenericInputBinding::Start},
 				};
@@ -147,6 +172,11 @@ namespace usb_pad
 			case MT_SHINKANSEN:
 				s->desc.str = dct02_desc_strings;
 				if (usb_desc_parse_dev(dct02_dev_descriptor, sizeof(dct02_dev_descriptor), s->desc, s->desc_dev) < 0)
+					goto fail;
+				break;
+			case MT_RYOJOUHEN:
+				s->desc.str = dct03_desc_strings;
+				if (usb_desc_parse_dev(dct03_dev_descriptor, sizeof(dct03_dev_descriptor), s->desc, s->desc_dev) < 0)
 					goto fail;
 				break;
 
@@ -250,6 +280,7 @@ namespace usb_pad
 			case CID_MC_D:
 			case CID_MC_SELECT:
 			case CID_MC_START:
+			case CID_MC_CAMERA:
 			{
 				return (button_at(data.buttons, bind_index) != 0u) ? 1.0f : 0.0f;
 			}
@@ -293,6 +324,7 @@ namespace usb_pad
 			case CID_MC_D:
 			case CID_MC_SELECT:
 			case CID_MC_START:
+			case CID_MC_CAMERA:
 			{
 				const u32 mask = button_mask(bind_index);
 				if (value >= 0.5f)
@@ -427,7 +459,44 @@ namespace usb_pad
 		return notches[std::size(notches) - 1].second;
 	}
 
+	static u8 dct03_power(u8 value)
+	{
+		// (N) 0x00 0x3C 0x78 0xB4 0xF0 (P4)
+		static std::pair<u8, u8> const notches[] = {
+			// { control_in, emulated_out },
+			{0xC0, 0xF0},
+			{0x90, 0xB4},
+			{0x50, 0x78},
+			{0x30, 0x3C},
+			{0x00, 0x00},
+		};
+
+		for (const auto& x : notches)
+		{
+			if (value >= x.first)
+				return x.second;
+		}
+		return notches[std::size(notches) - 1].second;
+	}
+	static u8 dct03_brake(u8 value)
+	{
+		// Depending on the game, this device presents in either Non Self-Lapping or Self-Lapping mode.
+		// NSL Release   Maintain  Increase  Emergency
+		//     0x23-0x64 0x65-0x89 0x8A-0xD6 0xD7
+		// SL  Released  B1        B2        B3        B4        B5        B6        EB
+		//     0x23-0x2A 0x2B-0x3C 0x3D-0x4E 0x4F-0x63 0x64-0x8A 0x8B-0xB0 0xB1-0xD6 0xD7
+		if (0x18 >= value)
+			return 0x23;
+		if (value >= 0xF8)
+			return 0xD7;
+		// We've trimmed 0x20 (0x8 for EB, 0x18 for release) leaving us with ~0xE0.
+		// 0xD7-0x23=0xB3 represents about 80% of the number space of 0xE0, so compress the remaining input values into that range.
+		u8 offset = 0x9 + value / 85;
+		return value / 5 * 4 + offset;
+	}
+
 #define get_ab(buttons) (button_at(buttons, CID_MC_A) | button_at(buttons, CID_MC_B))
+#define get_cd(buttons) (button_at(buttons, CID_MC_C) | button_at(buttons, CID_MC_D))
 #define swap_cd(buttons) ((button_at(buttons, CID_MC_C) << 1) | (button_at(buttons, CID_MC_D) >> 1))
 #define get_ss(buttons) (button_at(buttons, CID_MC_START) | button_at(buttons, CID_MC_SELECT))
 
@@ -436,6 +505,10 @@ namespace usb_pad
 	constexpr u8 dct02_buttons(u8 buttons)
 	{
 		return ((get_ab(buttons) << 2) | (swap_cd(buttons) >> 2) | get_ss(buttons));
+	}
+	constexpr u8 dct03_buttons(u8 buttons)
+	{
+		return (get_ab(buttons) | (button_at(buttons, CID_MC_CAMERA) >> 4) | ((get_cd(buttons) | get_ss(buttons)) << 1));
 	}
 
 	int MasconState::TokenIn(u8* buf, int len)
@@ -461,6 +534,15 @@ namespace usb_pad
 				buf[4] = dct02_buttons(data.buttons);
 				buf[5] = 0;
 				len = 6;
+				break;
+			case MT_RYOJOUHEN:
+				buf[0] = dct03_brake(data.brake);
+				buf[1] = dct03_power(data.power);
+				buf[2] = 0xFF; // Dedicated horn button, skip.
+				buf[3] = data.hatswitch & 0x0F;
+				buf[4] = dct03_buttons(data.buttons);
+				buf[5] = buf[6] = buf[7] = 0;
+				len = 8;
 				break;
 			default:
 				return USB_RET_IOERROR;
