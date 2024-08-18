@@ -110,6 +110,20 @@ namespace usb_pad
 		return {};
 	}
 
+	static std::span<const SettingInfo> MasconSettings(MasconTypes wt)
+	{
+		static constexpr const SettingInfo passthrough = {
+			SettingInfo::Type::Boolean,
+			"Passthrough",
+			TRANSLATE_NOOP("USB", "USB Passthrough Mode"),
+			TRANSLATE_NOOP("USB", "Passes through the input axis to the game. Enable if you are using an original Densha De Go! controller. Disable if you are using any other joystick."),
+			"false",
+		};
+
+		static constexpr const SettingInfo info[] = {passthrough};
+		return info;
+	}
+
 	static void mascon_handle_data(USBDevice* dev, USBPacket* p)
 	{
 		MasconState* s = USB_CONTAINER_OF(dev, MasconState, dev);
@@ -231,6 +245,16 @@ namespace usb_pad
 		return true;
 	}
 
+	void MasconDevice::UpdateSettings(USBDevice* dev, SettingsInterface& si) const
+	{
+		USB_CONTAINER_OF(dev, MasconState, dev)->UpdateSettings(si, TypeName());
+	}
+
+	std::span<const SettingInfo> MasconDevice::Settings(u32 subtype) const
+	{
+		return MasconSettings(static_cast<MasconTypes>(subtype));
+	}
+
 	MasconState::MasconState(u32 port_, MasconTypes type_)
 		: port(port_)
 		, type(type_)
@@ -244,6 +268,11 @@ namespace usb_pad
 	{
 		data.power = 0x00;
 		data.brake = 0x00;
+	}
+
+	void MasconState::UpdateSettings(SettingsInterface& si, const char* devname)
+	{
+		passthrough = USB::GetConfigBool(si, port, devname, "Passthrough", false);
 	}
 
 	static constexpr u32 button_mask(u32 bind_index)
@@ -519,16 +548,16 @@ namespace usb_pad
 		{
 			case MT_TYPE2:
 				buf[0] = 0x1;
-				buf[1] = dct01_brake(data.brake);
-				buf[2] = dct01_power(data.power);
+				buf[1] = passthrough ? data.power : dct01_brake(data.brake);
+				buf[2] = passthrough ? data.brake : dct01_power(data.power);
 				buf[3] = 0xFF; // Button C doubles as horn, skip.
 				buf[4] = data.hatswitch & 0x0F;
 				buf[5] = dct01_buttons(data.buttons);
 				len = 6;
 				break;
 			case MT_SHINKANSEN:
-				buf[0] = dct02_brake(data.brake);
-				buf[1] = dct02_power(data.power);
+				buf[0] = passthrough ? data.brake : dct02_brake(data.brake);
+				buf[1] = passthrough ? data.power : dct02_power(data.power);
 				buf[2] = 0xFF; // Button C doubles as horn, skip.
 				buf[3] = data.hatswitch & 0x0F;
 				buf[4] = dct02_buttons(data.buttons);
@@ -536,8 +565,8 @@ namespace usb_pad
 				len = 6;
 				break;
 			case MT_RYOJOUHEN:
-				buf[0] = dct03_brake(data.brake);
-				buf[1] = dct03_power(data.power);
+				buf[0] = passthrough ? data.brake : dct03_brake(data.brake);
+				buf[1] = passthrough ? data.power : dct03_power(data.power);
 				buf[2] = 0xFF; // Dedicated horn button, skip.
 				buf[3] = data.hatswitch & 0x0F;
 				buf[4] = dct03_buttons(data.buttons);

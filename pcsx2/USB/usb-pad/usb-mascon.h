@@ -24,6 +24,8 @@ namespace usb_pad
 		const char* Name() const override;
 		const char* TypeName() const override;
 		std::span<const char*> SubTypes() const override;
+		void UpdateSettings(USBDevice* dev, SettingsInterface& si) const override;
+		std::span<const SettingInfo> Settings(u32 subtype) const override;
 		float GetBindingValue(const USBDevice* dev, u32 bind_index) const override;
 		void SetBindingValue(USBDevice* dev, u32 bind_index, float value) const override;
 		std::span<const InputBindingInfo> Bindings(u32 subtype) const override;
@@ -34,6 +36,8 @@ namespace usb_pad
 	{
 		MasconState(u32 port_, MasconTypes type_);
 		~MasconState();
+
+		void UpdateSettings(SettingsInterface& si, const char* devname);
 
 		float GetBindValue(u32 bind) const;
 		void SetBindValue(u32 bind, float value);
@@ -49,6 +53,7 @@ namespace usb_pad
 
 		u32 port = 0;
 		MasconTypes type = MT_TYPE2;
+		bool passthrough = false;
 
 		struct
 		{
