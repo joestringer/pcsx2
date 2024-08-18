@@ -9,6 +9,12 @@
 
 namespace usb_pad
 {
+	enum MasconTypes
+	{
+		MT_TYPE2, // TCPP20009 or similar
+		MT_SHINKANSEN, // TCPP20011
+		MT_COUNT,
+	};
 
 	class MasconDevice final : public DeviceProxy
 	{
@@ -16,6 +22,7 @@ namespace usb_pad
 		USBDevice* CreateDevice(SettingsInterface& si, u32 port, u32 subtype) const override;
 		const char* Name() const override;
 		const char* TypeName() const override;
+		std::span<const char*> SubTypes() const override;
 		float GetBindingValue(const USBDevice* dev, u32 bind_index) const override;
 		void SetBindingValue(USBDevice* dev, u32 bind_index, float value) const override;
 		std::span<const InputBindingInfo> Bindings(u32 subtype) const override;
@@ -24,7 +31,7 @@ namespace usb_pad
 
 	struct MasconState
 	{
-		MasconState(u32 port_);
+		MasconState(u32 port_, MasconTypes type_);
 		~MasconState();
 
 		float GetBindValue(u32 bind) const;
@@ -40,6 +47,7 @@ namespace usb_pad
 		USBDescDevice desc_dev{};
 
 		u32 port = 0;
+		MasconTypes type = MT_TYPE2;
 
 		struct
 		{
@@ -176,6 +184,27 @@ namespace usb_pad
 		MASCON_AXES, // Brake, Power, Horn
 		MASCON_DPAD,
 		MASCON_BUTTONS(6),
+		MASCON_END,
+	};
+
+	// ---- Shinkansen controller ----
+
+	static const USBDescStrings dct02_desc_strings = {
+		"",
+		"TAITO",
+		"TAITO_DENSYA_CON_T02",
+		"TCPP20011",
+	};
+
+	DEFINE_DCT_DEV_DESCRIPTOR(dct02, 0x05, 0x0005);
+
+	// https://marcriera.github.io/ddgo-controller-docs/controllers/usb/descriptors/tcpp20011_hid-report-descriptor.txt
+	static const uint8_t dct02_hid_report_descriptor[] = {
+		MASCON_PREAMBLE,
+		MASCON_AXES, // Brake, Power, Pedal
+		MASCON_DPAD,
+		MASCON_BUTTONS(6),
+		MASCON_PAD_BYTE,
 		MASCON_END,
 	};
 

@@ -25,6 +25,15 @@ namespace usb_pad
 		return "DenshaCon";
 	}
 
+	std::span<const char*> MasconDevice::SubTypes() const
+	{
+		static const char* subtypes[] = {
+			TRANSLATE_NOOP("USB", "Type 2"),
+			TRANSLATE_NOOP("USB", "Shinkansen"),
+		};
+		return subtypes;
+	}
+
 	enum MasconControlID
 	{
 		CID_MC_POWER,
@@ -48,22 +57,32 @@ namespace usb_pad
 
 	std::span<const InputBindingInfo> MasconDevice::Bindings(u32 subtype) const
 	{
-		static constexpr const InputBindingInfo bindings[] = {
-			{"Power", TRANSLATE_NOOP("Pad", "Power"), ICON_PF_LEFT_ANALOG_DOWN, InputBindingInfo::Type::Axis, CID_MC_POWER, GenericInputBinding::LeftStickDown},
-			{"Brake", TRANSLATE_NOOP("Pad", "Brake"), ICON_PF_LEFT_ANALOG_UP, InputBindingInfo::Type::Axis, CID_MC_BRAKE, GenericInputBinding::LeftStickUp},
-			{"Up", TRANSLATE_NOOP("Pad", "D-Pad Up"), ICON_PF_DPAD_UP, InputBindingInfo::Type::Button, CID_MC_UP, GenericInputBinding::DPadUp},
-			{"Down", TRANSLATE_NOOP("Pad", "D-Pad Down"), ICON_PF_DPAD_DOWN, InputBindingInfo::Type::Button, CID_MC_DOWN, GenericInputBinding::DPadDown},
-			{"Left", TRANSLATE_NOOP("Pad", "D-Pad Left"), ICON_PF_DPAD_LEFT, InputBindingInfo::Type::Button, CID_MC_LEFT, GenericInputBinding::DPadLeft},
-			{"Right", TRANSLATE_NOOP("Pad", "D-Pad Right"), ICON_PF_DPAD_RIGHT, InputBindingInfo::Type::Button, CID_MC_RIGHT, GenericInputBinding::DPadRight},
-			{"A", TRANSLATE_NOOP("Pad", "A Button"), ICON_PF_KEY_A, InputBindingInfo::Type::Button, CID_MC_A, GenericInputBinding::Square},
-			{"B", TRANSLATE_NOOP("Pad", "B Button"), ICON_PF_KEY_B, InputBindingInfo::Type::Button, CID_MC_B, GenericInputBinding::Cross},
-			{"C", TRANSLATE_NOOP("Pad", "C Button"), ICON_PF_KEY_C, InputBindingInfo::Type::Button, CID_MC_C, GenericInputBinding::Circle},
-			{"D", TRANSLATE_NOOP("Pad", "D Button"), ICON_PF_KEY_D, InputBindingInfo::Type::Button, CID_MC_D, GenericInputBinding::Triangle},
-			{"Select", TRANSLATE_NOOP("Pad", "Select"), ICON_PF_SELECT_SHARE, InputBindingInfo::Type::Button, CID_MC_SELECT, GenericInputBinding::Select},
-			{"Start", TRANSLATE_NOOP("Pad", "Start"), ICON_PF_START, InputBindingInfo::Type::Button, CID_MC_START, GenericInputBinding::Start},
-		};
+		switch (subtype)
+		{
+			case MT_TYPE2:
+			case MT_SHINKANSEN:
+			{
+				static constexpr const InputBindingInfo bindings[] = {
+					{"Power", TRANSLATE_NOOP("Pad", "Power"), ICON_PF_LEFT_ANALOG_DOWN, InputBindingInfo::Type::Axis, CID_MC_POWER, GenericInputBinding::LeftStickDown},
+					{"Brake", TRANSLATE_NOOP("Pad", "Brake"), ICON_PF_LEFT_ANALOG_UP, InputBindingInfo::Type::Axis, CID_MC_BRAKE, GenericInputBinding::LeftStickUp},
+					{"Up", TRANSLATE_NOOP("Pad", "D-Pad Up"), ICON_PF_DPAD_UP, InputBindingInfo::Type::Button, CID_MC_UP, GenericInputBinding::DPadUp},
+					{"Down", TRANSLATE_NOOP("Pad", "D-Pad Down"), ICON_PF_DPAD_DOWN, InputBindingInfo::Type::Button, CID_MC_DOWN, GenericInputBinding::DPadDown},
+					{"Left", TRANSLATE_NOOP("Pad", "D-Pad Left"), ICON_PF_DPAD_LEFT, InputBindingInfo::Type::Button, CID_MC_LEFT, GenericInputBinding::DPadLeft},
+					{"Right", TRANSLATE_NOOP("Pad", "D-Pad Right"), ICON_PF_DPAD_RIGHT, InputBindingInfo::Type::Button, CID_MC_RIGHT, GenericInputBinding::DPadRight},
+					{"A", TRANSLATE_NOOP("Pad", "A Button"), ICON_PF_KEY_A, InputBindingInfo::Type::Button, CID_MC_A, GenericInputBinding::Square},
+					{"B", TRANSLATE_NOOP("Pad", "B Button"), ICON_PF_KEY_B, InputBindingInfo::Type::Button, CID_MC_B, GenericInputBinding::Cross},
+					{"C", TRANSLATE_NOOP("Pad", "C Button"), ICON_PF_KEY_C, InputBindingInfo::Type::Button, CID_MC_C, GenericInputBinding::Circle},
+					{"D", TRANSLATE_NOOP("Pad", "D Button"), ICON_PF_KEY_D, InputBindingInfo::Type::Button, CID_MC_D, GenericInputBinding::Triangle},
+					{"Select", TRANSLATE_NOOP("Pad", "Select"), ICON_PF_SELECT_SHARE, InputBindingInfo::Type::Button, CID_MC_SELECT, GenericInputBinding::Select},
+					{"Start", TRANSLATE_NOOP("Pad", "Start"), ICON_PF_START, InputBindingInfo::Type::Button, CID_MC_START, GenericInputBinding::Start},
+				};
 
-		return bindings;
+				return bindings;
+			}
+			default:
+				break;
+		}
+		return {};
 	}
 
 	static void mascon_handle_data(USBDevice* dev, USBPacket* p)
@@ -115,13 +134,26 @@ namespace usb_pad
 
 	USBDevice* MasconDevice::CreateDevice(SettingsInterface& si, u32 port, u32 subtype) const
 	{
-		MasconState* s = new MasconState(port);
-
+		MasconState* s = new MasconState(port, static_cast<MasconTypes>(subtype));
 		s->desc.full = &s->desc_dev;
-		s->desc.str = dct01_desc_strings;
 
-		if (usb_desc_parse_dev(dct01_dev_descriptor, sizeof(dct01_dev_descriptor), s->desc, s->desc_dev) < 0)
-			goto fail;
+		switch (subtype)
+		{
+			case MT_TYPE2:
+				s->desc.str = dct01_desc_strings;
+				if (usb_desc_parse_dev(dct01_dev_descriptor, sizeof(dct01_dev_descriptor), s->desc, s->desc_dev) < 0)
+					goto fail;
+				break;
+			case MT_SHINKANSEN:
+				s->desc.str = dct02_desc_strings;
+				if (usb_desc_parse_dev(dct02_dev_descriptor, sizeof(dct02_dev_descriptor), s->desc, s->desc_dev) < 0)
+					goto fail;
+				break;
+
+			default:
+				goto fail;
+		}
+
 		if (usb_desc_parse_config(taito_denshacon_config_descriptor, sizeof(taito_denshacon_config_descriptor), s->desc_dev) < 0)
 			goto fail;
 
@@ -169,8 +201,9 @@ namespace usb_pad
 		return true;
 	}
 
-	MasconState::MasconState(u32 port_)
+	MasconState::MasconState(u32 port_, MasconTypes type_)
 		: port(port_)
+		, type(type_)
 	{
 		Reset();
 	}
@@ -342,22 +375,99 @@ namespace usb_pad
 		return notches[std::size(notches) - 1].second;
 	}
 
-// MasconControlID buttons are laid out in Type 2 ordering, no need to remap.
-#define dct01_order(buttons) (buttons)
+	static u8 dct02_power(u8 value)
+	{
+		// (N) 0x12 0x24 0x36 0x48 0x5A 0x6C 0x7E 0x90 0xA2 0xB4 0xC6 0xD7 0xE9 0xFB (P13)
+		static std::pair<u8, u8> const notches[] = {
+			// { control_in, emulated_out },
+			{0xF7, 0xFB},
+			{0xE4, 0xE9},
+			{0xD1, 0xD7},
+			{0xBE, 0xC6},
+			{0xAB, 0xB4},
+			{0x98, 0xA2},
+			{0x85, 0x90},
+			{0x72, 0x7E},
+			{0x5F, 0x6C},
+			{0x4C, 0x5A},
+			{0x39, 0x48},
+			{0x26, 0x36},
+			{0x13, 0x24},
+			{0x00, 0x12},
+		};
+
+		for (const auto& x : notches)
+		{
+			if (value >= x.first)
+				return x.second;
+		}
+		return notches[std::size(notches) - 1].second;
+	}
+	static u8 dct02_brake(u8 value)
+	{
+		// (NB) 0x1C 0x38 0x54 0x70 0x8B 0xA7 0xC3 0xDF 0xFB (EB)
+		static std::pair<u8, u8> const notches[] = {
+			// { control_in, emulated_out },
+			{0xF8, 0xFB},
+			{0xCA, 0xDF},
+			{0xAE, 0xC3},
+			{0x92, 0xA7},
+			{0x76, 0x8B},
+			{0x5A, 0x70},
+			{0x3E, 0x54},
+			{0x22, 0x38},
+			{0x00, 0x1C},
+		};
+
+		for (const auto& x : notches)
+		{
+			if (value >= x.first)
+				return x.second;
+		}
+		return notches[std::size(notches) - 1].second;
+	}
+
+#define get_ab(buttons) (button_at(buttons, CID_MC_A) | button_at(buttons, CID_MC_B))
+#define swap_cd(buttons) ((button_at(buttons, CID_MC_C) << 1) | (button_at(buttons, CID_MC_D) >> 1))
+#define get_ss(buttons) (button_at(buttons, CID_MC_START) | button_at(buttons, CID_MC_SELECT))
+
+	// MasconControlID buttons are laid out in Type 2 ordering, no need to remap.
+	constexpr u8 dct01_buttons(u8 buttons) { return buttons; }
+	constexpr u8 dct02_buttons(u8 buttons)
+	{
+		return ((get_ab(buttons) << 2) | (swap_cd(buttons) >> 2) | get_ss(buttons));
+	}
 
 	int MasconState::TokenIn(u8* buf, int len)
 	{
 		UpdateHatSwitch();
 
-		buf[0] = 0x1;
-		buf[1] = dct01_brake(data.brake);
-		buf[2] = dct01_power(data.power);
-		buf[3] = 0xFF; // Button C doubles as horn.
-		buf[4] = data.hatswitch & 0x0F;
-		buf[5] = dct01_order(data.buttons);
+		switch (type)
+		{
+			case MT_TYPE2:
+				buf[0] = 0x1;
+				buf[1] = dct01_brake(data.brake);
+				buf[2] = dct01_power(data.power);
+				buf[3] = 0xFF; // Button C doubles as horn, skip.
+				buf[4] = data.hatswitch & 0x0F;
+				buf[5] = dct01_buttons(data.buttons);
+				len = 6;
+				break;
+			case MT_SHINKANSEN:
+				buf[0] = dct02_brake(data.brake);
+				buf[1] = dct02_power(data.power);
+				buf[2] = 0xFF; // Button C doubles as horn, skip.
+				buf[3] = data.hatswitch & 0x0F;
+				buf[4] = dct02_buttons(data.buttons);
+				buf[5] = 0;
+				len = 6;
+				break;
+			default:
+				return USB_RET_IOERROR;
+		}
 
-		DbgCon.WriteLn("Mascon - Power: %02x (raw: %02x) Brake: %02x (raw: %02x) Buttons: %02x. buflen: %d",
-			buf[2], data.power, buf[1], data.brake, buf[5], len);
+		DbgCon.WriteLn("Mascon - Type: %d Power: %02x (raw: %02x) Brake: %02x (raw: %02x) Buttons: %02x buflen: %d",
+			type, buf[2], data.power, buf[1], data.brake, buf[5], len);
 
 		return len;
 	}
