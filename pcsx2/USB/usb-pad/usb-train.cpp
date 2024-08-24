@@ -145,20 +145,42 @@ namespace usb_pad
 	{
 		TrainDeviceState* s = USB_CONTAINER_OF(dev, TrainDeviceState, dev);
 
-		s->passthrough = USB::GetConfigBool(si, s->port, TypeName(), "Passthrough", false);
+		std::string compat = USB::GetConfigString(si, s->port, TypeName(), "Compatibility", "Generic");
+		if (compat == "DGOC-44U")
+		{
+			s->compat = TRAIN_COMPAT_DGOC44U;
+		}
+		else
+		{
+			s->compat = TRAIN_COMPAT_GENERIC;
+		}
+	}
+
+	std::vector<std::pair<std::string, std::string>> GetCompatibilityModeList()
+	{
+		std::vector<std::pair<std::string, std::string>> ret;
+		ret.emplace_back("Generic", TRANSLATE_SV("USB", "Generic"));
+		ret.emplace_back("DGOC-44U", TRANSLATE_SV("USB", "DGOC-44U"));
+		return ret;
 	}
 
 	std::span<const SettingInfo> TrainDevice::Settings(u32 subtype) const
 	{
-		static constexpr const SettingInfo passthrough = {
-			SettingInfo::Type::Boolean,
-			"Passthrough",
-			TRANSLATE_NOOP("USB", "Axes Passthrough"),
-			TRANSLATE_NOOP("USB", "Passes through the unprocessed input axis to the game. Enable if you are using a compatible Densha De Go! controller. Disable if you are using any other joystick."),
-			"false",
+		static constexpr const SettingInfo compatibility = {
+			SettingInfo::Type::StringList,
+			"Compatibility",
+			TRANSLATE_NOOP("USB", "Compatibility mode"),
+			TRANSLATE_NOOP("USB", "Adjusts the power and brake values for compatibility with specific hardware controllers. Use \"Generic\" if you are not sure."),
+			"None",
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr,
+			GetCompatibilityModeList,
 		};
 
-		static constexpr const SettingInfo info[] = {passthrough};
+		static constexpr const SettingInfo info[] = {compatibility};
 		return info;
 	}
 
@@ -208,6 +230,21 @@ namespace usb_pad
 		}
 	}
 
+	static u32 clamp_axis(float value, enum TrainCompatMode compat)
+	{
+		switch (compat)
+		{
+			case TRAIN_COMPAT_DGOC44U:
+				if (value < 0.5f)
+					return 0x81 + static_cast<u32>(std::clamp<long>(std::lroundf(value * 255.0f), 0, 255));
+				return static_cast<u32>(std::clamp<long>(std::lroundf((value - 0.4995f) * 255.0f), 0, 255));
+			case TRAIN_COMPAT_GENERIC:
+				break;
+		}
+
+		return static_cast<u32>(std::clamp<long>(std::lroundf(value * 255.0f), 0, 255));
+	}
+
 	void TrainDevice::SetBindingValue(USBDevice* dev, u32 bind_index, float value) const
 	{
 		TrainDeviceState* s = USB_CONTAINER_OF(dev, TrainDeviceState, dev);
@@ -215,10 +252,10 @@ namespace usb_pad
 		switch (bind_index)
 		{
 			case CID_TC_POWER:
-				s->data.power = static_cast<u32>(std::clamp<long>(std::lroundf(value * 255.0f), 0, 255));
+				s->data.power = clamp_axis(value, s->compat);
 				break;
 			case CID_TC_BRAKE:
-				s->data.brake = static_cast<u32>(std::clamp<long>(std::lroundf(value * 255.0f), 0, 255));
+				s->data.brake = clamp_axis(value, s->compat);
 				break;
 
 			case CID_TC_UP:
@@ -465,8 +502,8 @@ namespace usb_pad
 			{
 				TrainConData_Type2 out = {};
 				out.control = 0x1;
-				out.brake = s->passthrough ? s->data.brake : dct01_brake(s->data.brake);
-				out.power = s->passthrough ? s->data.power : dct01_power(s->data.power);
+				out.brake = dct01_brake(s->data.brake);
+				out.power = dct01_power(s->data.power);
 				out.horn = 0xFF; // Button C doubles as horn.
 				out.hat = s->data.hatswitch;
 				out.buttons = dct01_buttons(s->data.buttons);
@@ -476,8 +513,8 @@ namespace usb_pad
 			case TRAIN_SHINKANSEN:
 			{
 				TrainConData_Shinkansen out = {};
-				out.brake = s->passthrough ? s->data.brake : dct02_brake(s->data.brake);
-				out.power = s->passthrough ? s->data.power : dct02_power(s->data.power);
+				out.brake = dct02_brake(s->data.brake);
+				out.power = dct02_power(s->data.power);
 				out.horn = 0xFF; // Button C doubles as horn, skip.
 				out.hat = s->data.hatswitch;
 				out.buttons = dct02_buttons(s->data.buttons);
@@ -487,8 +524,8 @@ namespace usb_pad
 			case TRAIN_RYOJOUHEN:
 			{
 				TrainConData_Ryojouhen out = {};
-				out.brake = s->passthrough ? s->data.brake : dct03_brake(s->data.brake);
-				out.power = s->passthrough ? s->data.power : dct03_power(s->data.power);
+				out.brake = dct03_brake(s->data.brake);
+				out.power = dct03_power(s->data.power);
 				out.horn = 0xFF; // Dedicated horn button, skip.
 				out.hat = s->data.hatswitch & 0x0F;
 				out.buttons = dct03_buttons(s->data.buttons);

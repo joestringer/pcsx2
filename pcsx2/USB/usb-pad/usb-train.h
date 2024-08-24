@@ -17,6 +17,12 @@ namespace usb_pad
 		TRAIN_COUNT,
 	};
 
+	enum TrainCompatMode
+	{
+		TRAIN_COMPAT_GENERIC,
+		TRAIN_COMPAT_DGOC44U,
+	};
+
 	class TrainDevice final : public DeviceProxy
 	{
 	public:
@@ -81,7 +87,7 @@ namespace usb_pad
 
 		u32 port = 0;
 		TrainDeviceTypes type = TRAIN_TYPE2;
-		bool passthrough = false;
+		TrainCompatMode compat = TRAIN_COMPAT_GENERIC;
 
 		struct
 		{
