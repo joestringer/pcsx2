@@ -253,9 +253,11 @@ namespace usb_pad
 		{
 			case CID_TC_POWER:
 				s->data.power = clamp_axis(value, s->compat);
+				Console.WriteLn("DenshaCon data: power_in=%f power_out=%d type=%d compat=%d", value, s->data.power, s->type, s->compat);
 				break;
 			case CID_TC_BRAKE:
 				s->data.brake = clamp_axis(value, s->compat);
+				Console.WriteLn("DenshaCon data: brake_in=%f brake_out=%d type=%d compat=%d", value, s->data.brake, s->type, s->compat);
 				break;
 
 			case CID_TC_UP:
